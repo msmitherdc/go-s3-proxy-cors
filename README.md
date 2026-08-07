@@ -53,9 +53,20 @@ truth for how a caller in another language should construct a token.
 | Env var             | Required | Description                                              |
 |----------------------|----------|-----------------------------------------------------------|
 | `PROXY_HMAC_SECRET`  | yes      | Shared secret used to verify handoff tokens                |
-| `ALLOWED_ORIGINS`    | yes      | Comma-separated origins to echo in `Access-Control-Allow-Origin` |
+| `ALLOWED_ORIGINS`    | yes      | Comma-separated origins/CIDRs to echo in `Access-Control-Allow-Origin` |
 | `LISTEN_ADDR`        | no       | Listen address (default `:8080`)                            |
 | `CA_BUNDLE_S3_URI`   | no       | `s3://bucket/key` of a PEM CA bundle to trust in addition to the system pool |
+
+`ALLOWED_ORIGINS` entries can be exact origins (`https://griddl.example.mil`,
+for callers with a real domain name - e.g. behind an external ALB) or bare
+CIDR ranges (`172.31.0.0/16`), mixed freely in the same comma-separated
+list. CIDR entries exist for callers reachable only by private IP with no
+domain name at all: the browser's `Origin` header is whatever the page's
+own URL is, so if the page serving griddl is itself loaded from a private
+IP, `Origin` will literally be something like `https://172.31.5.10:3000` -
+an exact string match can't account for every possible host IP in a
+subnet, so a CIDR match is checked instead whenever the `Origin` header's
+host parses as a bare IP.
 
 `CA_BUNDLE_S3_URI` is for networks whose internal PKI root isn't in the
 image's default trust store (the distroless base ships the normal public
