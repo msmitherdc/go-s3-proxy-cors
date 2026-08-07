@@ -1,0 +1,32 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: go-s3-proxy-cors
+    main: ./cmd/go-s3-proxy-cors
+    binary: go-s3-proxy-cors
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - id: go-s3-proxy-cors
+    formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}-{{ .Os }}-{{ .Arch }}
+
+checksum:
+  name_template: 'checksums.txt'
+
+changelog:
+  disable: true # release-please already maintains CHANGELOG.md
