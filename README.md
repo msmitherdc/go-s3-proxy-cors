@@ -87,9 +87,10 @@ Or via Docker:
 docker build -t go-s3-proxy-cors .
 ```
 
-Releases are built for `linux/amd64`, `linux/arm64`, `darwin/amd64`, and
-`darwin/arm64` via [GoReleaser](https://goreleaser.com/), and a
-multi-arch container image is pushed to
-`ghcr.io/msmitherdc/go-s3-proxy-cors`. Versioning and the changelog are
-managed by [release-please](https://github.com/googleapis/release-please)
-from Conventional Commits on `main`.
+Release binaries are built for `linux/amd64`, `linux/arm64`, `darwin/amd64`,
+and `darwin/arm64` via [GoReleaser](https://goreleaser.com/). The container
+image is `linux/amd64` only (matching the Fargate deployment target) and is
+pushed to `ghcr.io/msmitherdc/go-s3-proxy-cors`. Versioning and the
+changelog are managed by
+[release-please](https://github.com/googleapis/release-please) from
+Conventional Commits on `main`.
