@@ -55,6 +55,15 @@ truth for how a caller in another language should construct a token.
 | `PROXY_HMAC_SECRET`  | yes      | Shared secret used to verify handoff tokens                |
 | `ALLOWED_ORIGINS`    | yes      | Comma-separated origins to echo in `Access-Control-Allow-Origin` |
 | `LISTEN_ADDR`        | no       | Listen address (default `:8080`)                            |
+| `CA_BUNDLE_S3_URI`   | no       | `s3://bucket/key` of a PEM CA bundle to trust in addition to the system pool |
+
+`CA_BUNDLE_S3_URI` is for networks whose internal PKI root isn't in the
+image's default trust store (the distroless base ships the normal public
+CA set only) - e.g. a classified enclave with its own CA, where the
+bundle itself only exists as an object inside that same network. The
+bundle is fetched once at startup via the default-trust S3 client, and
+the resulting trust (system pool + bundle) is then used for every S3
+call the proxy makes afterward, not just that fetch.
 
 AWS credentials/region come from the standard SDK default chain (env vars,
 instance/task role, etc.) — on ECS this should just be the task role, scoped

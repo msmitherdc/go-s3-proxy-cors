@@ -9,6 +9,10 @@
 // Optional:
 //
 //	LISTEN_ADDR         address to listen on (default ":8080")
+//	CA_BUNDLE_S3_URI    s3://bucket/key of a PEM CA bundle to trust in
+//	                     addition to the host's system pool, for
+//	                     networks with an internal PKI root not present
+//	                     in the image's default trust store
 package main
 
 import (
@@ -19,6 +23,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
@@ -43,15 +48,26 @@ func main() {
 		addr = ":8080"
 	}
 
-	awsCfg, err := config.LoadDefaultConfig(context.Background())
+	ctx := context.Background()
+
+	awsCfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		logger.Error("failed to load AWS config", "error", err)
 		os.Exit(1)
 	}
 
+	s3Client := s3.NewFromConfig(awsCfg)
+	if caBundleURI := os.Getenv("CA_BUNDLE_S3_URI"); caBundleURI != "" {
+		s3Client, err = s3ClientWithCABundle(ctx, awsCfg, s3Client, caBundleURI)
+		if err != nil {
+			logger.Error("failed to load CA bundle", "uri", caBundleURI, "error", err)
+			os.Exit(1)
+		}
+	}
+
 	handler := &proxy.Handler{
 		Secret:         []byte(secret),
-		S3:             s3.NewFromConfig(awsCfg),
+		S3:             s3Client,
 		AllowedOrigins: proxy.NewAllowlist(origins),
 		Logger:         logger,
 	}
@@ -73,4 +89,27 @@ func main() {
 		logger.Error("server error", "error", err)
 		os.Exit(1)
 	}
+}
+
+// s3ClientWithCABundle fetches the PEM CA bundle at uri using bootstrap
+// (the default-trust S3 client) and returns a new S3 client whose HTTP
+// transport also trusts that bundle's CA - used for every call the
+// returned client makes afterward, not just this fetch.
+func s3ClientWithCABundle(ctx context.Context, cfg aws.Config, bootstrap *s3.Client, uri string) (*s3.Client, error) {
+	bucket, key, err := proxy.ParseS3URI(uri)
+	if err != nil {
+		return nil, err
+	}
+
+	pemBytes, err := proxy.FetchCABundle(ctx, bootstrap, bucket, key)
+	if err != nil {
+		return nil, err
+	}
+
+	httpClient, err := proxy.HTTPClientWithCABundle(pemBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return s3.NewFromConfig(cfg, func(o *s3.Options) { o.HTTPClient = httpClient }), nil
 }
